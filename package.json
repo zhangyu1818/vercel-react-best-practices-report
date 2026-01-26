@@ -1,0 +1,52 @@
+{
+  "name": "vercel-react-best-practices-report",
+  "type": "module",
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.26.2",
+  "description": "Audit React-family files with Vercel React Best Practices and merge results into a JSON report.",
+  "author": "Zhang Yu <hey@zhangyu.dev>",
+  "license": "MIT",
+  "homepage": "https://github.com/zhangyu1818/vercel-react-best-practices-report#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhangyu1818/vercel-react-best-practices-report.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zhangyu1818/vercel-react-best-practices-report/issues"
+  },
+  "keywords": [
+    "react",
+    "nextjs",
+    "vercel",
+    "best-practices",
+    "report",
+    "audit",
+    "cli"
+  ],
+  "main": "index.js",
+  "bin": {
+    "vercel-react-best-practices-report": "bin/vercel-react-best-practices-report.js"
+  },
+  "scripts": {
+    "build:bin": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "@opencode-ai/sdk": "^1.1.35",
+    "arg": "^5.0.2",
+    "ink": "^6.6.0",
+    "react": "^19.2.3",
+    "react-devtools-core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "@types/react": "^19.2.9",
+    "@zhangyu1818/eslint-config": "^4.0.1",
+    "eslint": "^9.39.2",
+    "prettier": "^3.8.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
