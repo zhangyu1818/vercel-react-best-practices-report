@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { execSync } from 'node:child_process'
 /* eslint-disable react-refresh/only-export-components */
 import fs from 'node:fs'
