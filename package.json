@@ -1,7 +1,7 @@
 {
   "name": "vercel-react-best-practices-report",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "packageManager": "pnpm@10.26.2",
   "description": "Audit React-family files with Vercel React Best Practices and merge results into a JSON report.",
   "author": "Zhang Yu <hey@zhangyu.dev>",
@@ -30,11 +30,12 @@
   "scripts": {
     "build:bin": "tsc -p tsconfig.json",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "tsx --test test/**/*.test.ts"
   },
   "dependencies": {
     "@inkjs/ui": "^2.0.0",
-    "@opencode-ai/sdk": "^1.1.35",
+    "@openai/codex-sdk": "^0.113.0",
     "arg": "^5.0.2",
     "ink": "^6.6.0",
     "react": "^19.2.3",

@@ -1,57 +1,52 @@
 # Vercel React Best Practices Report
 
-You must load the `vercel-react-best-practices` skill and strictly follow ONLY the rules defined in that skill. Do not invent new rules, do not apply general React opinions, and do not enforce stylistic preferences (like Prettier/ESLint rules) unless they are explicitly part of the Vercel Best Practices.
-
-skill({ name: "vercel-react-best-practices" })
+You must explicitly use `$vercel-react-best-practices` and strictly follow only the rules defined in that skill. Do not invent new rules, do not apply general React opinions, and do not enforce stylistic preferences unless they are explicitly part of the Vercel Best Practices skill.
 
 ## Overview
 
-Use these instructions to inspect React/Next.js/React Native source files against **ONLY** the rules defined in the `vercel-react-best-practices` skill. Produce merge-ready findings for `react-best-practices-report/reports.json` using the merge command.
+Use these instructions to inspect one React-family source file against only the rules defined in `$vercel-react-best-practices`. Return structured findings for that single file.
 
 ## Auditing Guidelines
 
-1. **Strict Adherence**: Only report violations that directly map to a rule in the `vercel-react-best-practices` skill.
-2. **Ignore Irrelevance**: If a file violates a generic "clean code" principle but not a Vercel rule, ignore it.
-3. **No Hallucinations**: Do not make up rule names. Use the exact rule names from the skill documentation.
-4. **Context Aware**: Ensure the rule actually applies to the specific framework context (e.g., Next.js vs React Native).
+1. Strict adherence: only report violations that directly map to a rule in `$vercel-react-best-practices`.
+2. Ignore irrelevance: if a file violates a generic clean-code principle but not a Vercel rule, ignore it.
+3. No hallucinations: do not make up rule names. Use the exact rule names from the skill documentation.
+4. Context aware: ensure the rule actually applies to the specific framework context in the provided file.
 
 ## Inputs
 
-- `filePath` and file contents are provided in the prompt.
+- The prompt provides `filePath` and the full file contents.
 
 ## Rules
 
 - Do not run file discovery commands.
-- Do not write `react-best-practices-report/reports.json` directly.
-- The only allowed CLI call is: `npx -y vercel-react-best-practices-report --merge '<json>'`.
-- Do not write JSON to any files or use helper CLI tools (no cat/tee/python).
+- Do not write files.
+- Do not execute merge commands.
+- Only evaluate the file path and file contents provided in the prompt.
 
-## Workflow
+## Required Output
 
-1. Read the file content provided.
-2. Evaluate every Vercel React Best Practices rule.
-3. For each violation, capture:
-   - `lineNumber`: line range as `start-end` (1-based; use a single line for single-line issues).
-   - `lineContent`: exact source line(s) for the reported line range (use `\n` between lines for ranges).
-   - `rule`: rule name from `vercel-react-best-practices`.
-   - `suggestion`: concise replacement snippet that resolves the issue.
-4. Build a `newResults` object keyed by file path. Use arrays when a file has multiple violations. If a file has no violations, set its value to an empty array so the report records that it was checked.
-5. Output the JSON object only (no Markdown, no extra text).
-6. Then execute exactly one CLI command: `npx -y vercel-react-best-practices-report --merge '<json>'`.
-7. If the JSON contains a single quote character, escape it as `\u0027` in the JSON string before running the command.
+- Return one JSON object with:
+  - `findings`: an array of violations for that file
+- Do not return `filePath`; the host application already knows which file is being audited.
+- If the file has no violations, return an empty `findings` array.
+- For each violation, include:
+  - `lineNumber`: line range as `start-end` (1-based; use a single line number for a single-line issue)
+  - `lineContent`: exact source line or lines for the reported range, joined with `\n` when needed
+  - `rule`: exact rule name from `$vercel-react-best-practices`
+  - `suggestion`: concise replacement snippet that resolves the issue
 
-Example only. Do not wrap your output in code fences.
+## Example
 
 ```json
 {
-  "/abs/path/App.tsx": [
+  "findings": [
     {
-      "lineNumber": "12-18",
-      "lineContent": "const Page = async () => {\n  return <Layout />;\n};",
-      "rule": "PreferServerComponents",
-      "suggestion": "const Page = async () => {\n  return <Layout />;\n};"
+      "lineNumber": "1",
+      "lineContent": "import { Check, X, Menu } from 'lucide-react';",
+      "rule": "bundle-barrel-imports",
+      "suggestion": "import Check from 'lucide-react/dist/esm/icons/check';\nimport X from 'lucide-react/dist/esm/icons/x';\nimport Menu from 'lucide-react/dist/esm/icons/menu';"
     }
-  ],
-  "/abs/path/Clean.tsx": []
+  ]
 }
 ```
