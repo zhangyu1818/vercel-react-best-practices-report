@@ -16,6 +16,12 @@ import {
   createCodexRunner,
   type CodexSessionState,
 } from './lib/codex-runner.js'
+import {
+  claimNextQueueFile,
+  initializeQueueState,
+  markQueueFileDone,
+  markQueueFileFailed,
+} from './lib/queue-state.js'
 import { mergeAuditResultsIntoReport } from './lib/report-files.js'
 import {
   buildSessionOutcomeLine,
@@ -27,7 +33,6 @@ const baseDir = process.cwd()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const reportDir = path.join(baseDir, 'react-best-practices-report')
-const checkFilePath = path.join(reportDir, 'check-files.txt')
 const promptPath = path.join(
   __dirname,
   '..',
@@ -73,25 +78,9 @@ const buildFindCommand = () =>
   `-not -name "*.spec.*" ` +
   `-not -name "*.d.ts"`
 
-const ensureCheckFile = () => {
-  if (fs.existsSync(checkFilePath)) {
-    return
-  }
+const discoverAuditFiles = (): string[] => {
   const output = execSync(buildFindCommand(), { encoding: 'utf8' })
-  const lines = output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-  const content = lines.length !== 0 ? `${lines.join('\n')}\n` : ''
-  fs.writeFileSync(checkFilePath, content, 'utf8')
-}
-
-const loadQueue = (): string[] => {
-  if (!fs.existsSync(checkFilePath)) {
-    return []
-  }
-  const content = fs.readFileSync(checkFilePath, 'utf8')
-  return content
+  return output
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
@@ -99,13 +88,12 @@ const loadQueue = (): string[] => {
 
 interface AppProps {
   baseDir: string
-  checkFilePath: string
   concurrency: number
   model: string
   promptTemplate: string
-  queueLines: string[]
   reasoningEffort: string
   reportDir: string
+  totalFiles: number
 }
 
 type SessionStatus = CodexSessionState
@@ -136,33 +124,14 @@ const initSessions = (count: number): SessionView[] =>
     status: 'idle',
   }))
 
-const createQueue = (lines: string[], queueFilePath: string) => {
-  let index = 0
-  const popNext = (): null | string => {
-    if (index >= lines.length) {
-      return null
-    }
-    const next = lines[index]
-    index += 1
-    const remaining = lines.slice(index)
-    const tempPath = `${queueFilePath}.tmp`
-    const content = remaining.length !== 0 ? `${remaining.join('\n')}\n` : ''
-    fs.writeFileSync(tempPath, content, 'utf8')
-    fs.renameSync(tempPath, queueFilePath)
-    return next
-  }
-  return { popNext }
-}
-
 const App = ({
   baseDir,
-  checkFilePath,
   concurrency,
   model,
   promptTemplate,
-  queueLines,
   reasoningEffort,
   reportDir,
+  totalFiles,
 }: AppProps) => {
   const { exit } = useApp()
   const [sessions, setSessions] = useState<SessionView[]>(() =>
@@ -173,7 +142,7 @@ const App = ({
     completed: 0,
     errors: 0,
     findings: 0,
-    total: queueLines.length,
+    total: totalFiles,
   })
   const [fatalError, setFatalError] = useState<null | string>(null)
   const [isComplete, setIsComplete] = useState(false)
@@ -181,7 +150,6 @@ const App = ({
   const [lastFinishedLine, setLastFinishedLine] = useState<null | string>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
-  const queueRef = useRef(createQueue(queueLines, checkFilePath))
   const activeAbortControllers = useRef(new Set<AbortController>())
   const taskCounterRef = useRef(0)
 
@@ -243,7 +211,7 @@ const App = ({
           return
         }
 
-        const filePath = queueRef.current.popNext()
+        const filePath = await claimNextQueueFile(reportDir)
         if (!filePath) {
           return
         }
@@ -289,6 +257,7 @@ const App = ({
             const errorMessage = didTimeout
               ? 'Session timed out after 10 minutes.'
               : result.error
+            await markQueueFileFailed(reportDir, filePath)
             const finishedAtMs = Date.now()
             updateSlot(slotIndex, {
               error: errorMessage,
@@ -316,6 +285,7 @@ const App = ({
             result.output,
           )
           if (!mergeResult.ok) {
+            await markQueueFileFailed(reportDir, filePath)
             const finishedAtMs = Date.now()
             updateSlot(slotIndex, {
               error: mergeResult.messages[0] ?? 'Failed to merge reports.',
@@ -338,6 +308,7 @@ const App = ({
             continue
           }
 
+          await markQueueFileDone(reportDir, filePath)
           const finishedAtMs = Date.now()
           updateSlot(slotIndex, {
             findingsCount,
@@ -364,6 +335,7 @@ const App = ({
             : error instanceof Error
               ? error.message
               : String(error)
+          await markQueueFileFailed(reportDir, filePath)
           const finishedAtMs = Date.now()
           updateSlot(slotIndex, {
             error: message,
@@ -390,7 +362,7 @@ const App = ({
     }
 
     const start = async () => {
-      if (queueLines.length === 0) {
+      if (totalFiles === 0) {
         setFatalError('No files found to process.')
         setIsComplete(true)
         exit()
@@ -429,15 +401,14 @@ const App = ({
     }
   }, [
     baseDir,
-    checkFilePath,
     concurrency,
     exit,
     model,
     nextTaskNumber,
     promptTemplate,
-    queueLines.length,
     reasoningEffort,
     reportDir,
+    totalFiles,
     updateSlot,
     updateStats,
   ])
@@ -570,20 +541,18 @@ const main = async () => {
   }
 
   ensureReportDir()
-  ensureCheckFile()
-  const queueLines = loadQueue()
+  const totalFiles = await initializeQueueState(reportDir, discoverAuditFiles())
   const promptTemplate = fs.readFileSync(promptPath, 'utf8')
 
   render(
     <App
       baseDir={baseDir}
-      checkFilePath={checkFilePath}
       concurrency={cliOptions.concurrency}
       model={cliOptions.model}
       promptTemplate={promptTemplate}
-      queueLines={queueLines}
       reasoningEffort={cliOptions.reasoningEffort}
       reportDir={reportDir}
+      totalFiles={totalFiles}
     />,
   )
 }
