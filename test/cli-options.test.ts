@@ -115,3 +115,19 @@ test('resolveCliOptions rejects --reasoning-effort for claude', () => {
         '--reasoning-effort is only supported for --adapter codex.',
   )
 })
+
+test('resolveCliOptions rejects unknown --effort for claude', () => {
+  assert.throws(
+    () =>
+      resolveCliOptions({
+        '--adapter': 'claude',
+        '--concurrency': null,
+        '--effort': 'hgh',
+        '--model': 'claude-sonnet-4-6',
+        '--reasoning-effort': null,
+      }),
+    (error) =>
+      error instanceof CliUsageError &&
+      error.message === '--effort must be one of: low, medium, high, max.',
+  )
+})

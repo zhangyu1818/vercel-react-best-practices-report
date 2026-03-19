@@ -157,3 +157,27 @@ test('createClaudeAdapter surfaces error result subtypes', async () => {
     )
   }
 })
+
+test('createClaudeAdapter catches synchronous query initialization failures', async () => {
+  const adapter = createClaudeAdapter({
+    effort: 'high',
+    model: 'claude-sonnet-4-6',
+    workingDirectory: '/tmp/project',
+    query() {
+      throw new Error('sync boom')
+    },
+  })
+
+  const result = await adapter.runFileAudit({
+    fileContent: 'export {}',
+    filePath: '/tmp/project/App.tsx',
+    promptTemplate: 'Audit this file.',
+  })
+
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.error, 'sync boom')
+    assert.equal(result.sessionID, null)
+    assert.equal(result.usage, null)
+  }
+})

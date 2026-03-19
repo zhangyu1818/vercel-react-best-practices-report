@@ -33,6 +33,7 @@ export type ResolvedCliOptions =
 export class CliUsageError extends Error {}
 
 const defaultConcurrency = 1
+const claudeEfforts = ['low', 'medium', 'high', 'max'] as const
 const defaultClaudeEffort: ClaudeEffort = 'high'
 const defaultReasoningEffort: ModelReasoningEffort = 'high'
 
@@ -81,6 +82,16 @@ const parseConcurrency = (value: null | number): number => {
   return concurrency
 }
 
+const parseClaudeEffort = (value: string): ClaudeEffort => {
+  if (value === '') {
+    return defaultClaudeEffort
+  }
+  if (!claudeEfforts.includes(value as ClaudeEffort)) {
+    throw new CliUsageError('--effort must be one of: low, medium, high, max.')
+  }
+  return value as ClaudeEffort
+}
+
 export const resolveCliOptions = ({
   '--adapter': adapterValue,
   '--concurrency': concurrencyValue,
@@ -121,7 +132,7 @@ export const resolveCliOptions = ({
   return {
     adapter,
     concurrency,
-    effort: effort === '' ? defaultClaudeEffort : (effort as ClaudeEffort),
+    effort: parseClaudeEffort(effort),
     model,
   }
 }

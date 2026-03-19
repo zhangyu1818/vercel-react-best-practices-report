@@ -64,31 +64,11 @@ export const createClaudeAdapter = ({
   }: RunFileAuditOptions): Promise<AuditRunOutcome> {
     const abortController = new AbortController()
     const prompt = buildPrompt(promptTemplate, filePath, fileContent)
-    const queryHandle = query({
-      prompt,
-      options: {
-        abortController,
-        allowedTools: ['Skill', 'Read'],
-        cwd: workingDirectory,
-        effort,
-        model,
-        permissionMode: 'dontAsk',
-        settingSources: ['user', 'project'],
-        tools: ['Skill', 'Read'],
-        outputFormat: {
-          schema: auditOutputSchema,
-          type: 'json_schema',
-        },
-        systemPrompt: {
-          preset: 'claude_code',
-          type: 'preset',
-        },
-      },
-    })
+    let queryHandle: null | ReturnType<ClaudeQuery> = null
 
     const handleAbort = () => {
       abortController.abort()
-      queryHandle.close?.()
+      queryHandle?.close?.()
     }
 
     if (signal?.aborted) {
@@ -104,6 +84,28 @@ export const createClaudeAdapter = ({
     signal?.addEventListener('abort', handleAbort, { once: true })
 
     try {
+      queryHandle = query({
+        prompt,
+        options: {
+          abortController,
+          allowedTools: ['Skill', 'Read'],
+          cwd: workingDirectory,
+          effort,
+          model,
+          permissionMode: 'dontAsk',
+          settingSources: ['user', 'project'],
+          tools: ['Skill', 'Read'],
+          outputFormat: {
+            schema: auditOutputSchema,
+            type: 'json_schema',
+          },
+          systemPrompt: {
+            preset: 'claude_code',
+            type: 'preset',
+          },
+        },
+      })
+
       let resultMessage: ClaudeResultMessage | null = null
 
       for await (const message of queryHandle) {
