@@ -1,6 +1,6 @@
 # vercel-react-best-practices-report
 
-A CLI/TUI tool powered by [Codex](https://developers.openai.com/codex/) to audit React and Next.js codebases against the `$vercel-react-best-practices` skill.
+A CLI/TUI tool powered by provider adapters to audit React and Next.js codebases against the `$vercel-react-best-practices` skill.
 
 ## Installation
 
@@ -12,14 +12,21 @@ Or run directly with `npx`.
 
 ## Prerequisites
 
+### Codex adapter
+
 - A working Codex CLI environment on the machine.
 - Valid Codex/OpenAI authentication for the current shell session.
-- The `$vercel-react-best-practices` skill installed either in `$HOME/.agents/skills` or the compatible legacy Codex skills location.
+- The `$vercel-react-best-practices` skill installed in the Codex-compatible skill location.
+
+### Claude adapter
+
+- Claude Code CLI installed and authenticated in the current shell session.
+- The `$vercel-react-best-practices` skill installed at `~/.claude/skills/vercel-react-best-practices/SKILL.md`.
 
 ## Usage
 
 ```bash
-vercel-react-best-practices-report --model <model-id> [--reasoning-effort <level>] [--concurrency <n>]
+vercel-react-best-practices-report --adapter <codex|claude> --model <model-id> [--concurrency <n>] [provider options]
 ```
 
 By default the tool runs with a single worker. Increase concurrency only when you explicitly pass `--concurrency`.
@@ -28,24 +35,26 @@ By default the tool runs with a single worker. Increase concurrency only when yo
 
 | Option | Description |
 | --- | --- |
-| `--model`, `-m` | Required. Codex-supported model id, for example `gpt-5.3-codex` or `gpt-5.4` |
-| `--reasoning-effort`, `-r` | Optional. Passed through to Codex `model_reasoning_effort`. Defaults to `high`. |
+| `--adapter`, `-a` | Required. Provider adapter: `codex` or `claude` |
+| `--model`, `-m` | Required. Model id for the selected adapter |
 | `--concurrency`, `-c` | Optional. Number of parallel workers. Default is `1` |
+| `--reasoning-effort`, `-r` | Codex only. Passed through to Codex `model_reasoning_effort`. Defaults to `high` |
+| `--effort`, `-e` | Claude only. Passed through to Claude Agent SDK `effort`. Defaults to `high` |
 
-### Example
+### Examples
 
 ```bash
-vercel-react-best-practices-report --model gpt-5.3-codex
-vercel-react-best-practices-report --model gpt-5.4
-vercel-react-best-practices-report --model gpt-5.3-codex --reasoning-effort xhigh
-vercel-react-best-practices-report --model gpt-5.3-codex --concurrency 2
+vercel-react-best-practices-report --adapter codex --model gpt-5.4
+vercel-react-best-practices-report --adapter codex --model gpt-5.3-codex --reasoning-effort xhigh
+vercel-react-best-practices-report --adapter claude --model claude-sonnet-4-6
+vercel-react-best-practices-report --adapter claude --model claude-opus-4-1 --effort max --concurrency 2
 ```
 
 ## Output
 
 Results are saved to `react-best-practices-report/reports.json` in the current working directory.
 
-The tool relies on Codex's normal environment inheritance, so repository `AGENTS.md`, global skills, and Codex home configuration are discovered the same way they are for the Codex CLI.
+The tool keeps the audit output contract fixed across providers: each file audit must resolve to a JSON object with a single `findings` array, and the host process validates and merges those results into the final report.
 
 ## Visualize Results
 

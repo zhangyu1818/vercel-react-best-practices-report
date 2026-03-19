@@ -2,12 +2,12 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  collectRunOutcome,
-  createCodexRunner,
-} from '../src/bin/lib/codex-runner.js'
+  collectCodexRunOutcome,
+  createCodexAdapter,
+} from '../../src/bin/lib/providers/codex-adapter.js'
 
-test('collectRunOutcome returns parsed structured results from completed turn', () => {
-  const result = collectRunOutcome(
+test('collectCodexRunOutcome returns parsed structured results from completed turn', () => {
+  const result = collectCodexRunOutcome(
     [
       { thread_id: 'thread-1', type: 'thread.started' },
       { type: 'turn.started' },
@@ -41,15 +41,15 @@ test('collectRunOutcome returns parsed structured results from completed turn', 
 
   assert.equal(result.ok, true)
   if (result.ok) {
-    assert.equal(result.threadID, 'thread-1')
+    assert.equal(result.sessionID, 'thread-1')
     assert.deepEqual(result.output, {
       '/abs/path/App.tsx': [],
     })
   }
 })
 
-test('collectRunOutcome surfaces turn failures', () => {
-  const result = collectRunOutcome(
+test('collectCodexRunOutcome surfaces turn failures', () => {
+  const result = collectCodexRunOutcome(
     [
       { thread_id: 'thread-1', type: 'thread.started' },
       { type: 'turn.started' },
@@ -67,10 +67,11 @@ test('collectRunOutcome surfaces turn failures', () => {
   }
 })
 
-test('createCodexRunner sets a supported reasoning effort on each thread', async () => {
+test('createCodexAdapter sets a supported reasoning effort on each thread', async () => {
   let threadOptions: Record<string, unknown> | undefined
 
-  const runner = createCodexRunner({
+  const adapter = createCodexAdapter({
+    adapter: 'codex',
     model: 'gpt-5.3-codex',
     reasoningEffort: 'high',
     workingDirectory: '/tmp/project',
@@ -106,7 +107,7 @@ test('createCodexRunner sets a supported reasoning effort on each thread', async
     } as never,
   })
 
-  const result = await runner.runFileAudit({
+  const result = await adapter.runFileAudit({
     fileContent: 'export {}',
     filePath: '/abs/path/App.tsx',
     promptTemplate: 'Audit this file.',
@@ -116,10 +117,11 @@ test('createCodexRunner sets a supported reasoning effort on each thread', async
   assert.equal(threadOptions?.modelReasoningEffort, 'high')
 })
 
-test('createCodexRunner passes through explicit reasoning effort overrides', async () => {
+test('createCodexAdapter passes through explicit reasoning effort overrides', async () => {
   let threadOptions: Record<string, unknown> | undefined
 
-  const runner = createCodexRunner({
+  const adapter = createCodexAdapter({
+    adapter: 'codex',
     model: 'gpt-5.3-codex',
     reasoningEffort: 'xhigh',
     workingDirectory: '/tmp/project',
@@ -155,7 +157,7 @@ test('createCodexRunner passes through explicit reasoning effort overrides', asy
     } as never,
   })
 
-  const result = await runner.runFileAudit({
+  const result = await adapter.runFileAudit({
     fileContent: 'export {}',
     filePath: '/abs/path/App.tsx',
     promptTemplate: 'Audit this file.',

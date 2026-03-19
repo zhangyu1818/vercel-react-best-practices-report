@@ -7,7 +7,7 @@ export interface AuditFinding {
 
 export type AuditResult = Record<string, AuditFinding[]>
 
-export interface CodexAuditOutput {
+export interface AuditOutput {
   findings: AuditFinding[]
 }
 
@@ -31,7 +31,7 @@ export const auditResultsSchema = {
   },
 } as const
 
-export const codexAuditOutputSchema = {
+export const auditOutputSchema = {
   additionalProperties: false,
   required: ['findings'],
   type: 'object',
@@ -120,7 +120,7 @@ export const validateAuditResults = (
   }
 }
 
-export const validateCodexAuditOutput = (
+export const validateAuditOutput = (
   value: unknown,
 ):
   | {
@@ -129,7 +129,7 @@ export const validateCodexAuditOutput = (
     }
   | {
       ok: true
-      value: CodexAuditOutput
+      value: AuditOutput
     } => {
   const errors: string[] = []
   if (!isPlainObject(value)) {
@@ -164,13 +164,13 @@ export const validateCodexAuditOutput = (
 
   return {
     ok: true,
-    value: value as CodexAuditOutput,
+    value: value as AuditOutput,
   }
 }
 
-export const codexAuditOutputToAuditResult = (
+export const auditOutputToAuditResult = (
   filePath: string,
-  output: CodexAuditOutput,
+  output: AuditOutput,
 ): AuditResult => ({
   [filePath]: output.findings,
 })
