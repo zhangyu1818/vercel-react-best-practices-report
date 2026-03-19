@@ -11,11 +11,13 @@ import { Badge, Spinner, StatusMessage } from '@inkjs/ui'
 import arg from 'arg'
 import { Box, render, Text, useApp } from 'ink'
 
-import { CliUsageError, resolveCliOptions, usage } from './lib/cli-options.js'
 import {
-  createCodexRunner,
-  type CodexSessionState,
-} from './lib/codex-runner.js'
+  CliUsageError,
+  resolveCliOptions,
+  usage,
+  type ResolvedCliOptions,
+} from './lib/cli-options.js'
+import { createAuditAdapter } from './lib/providers/create-audit-adapter.js'
 import {
   claimNextQueueFile,
   initializeQueueState,
@@ -46,11 +48,15 @@ const parseArgs = () => {
   try {
     return arg(
       {
+        '--adapter': String,
         '--concurrency': Number,
+        '--effort': String,
         '--help': Boolean,
         '--model': String,
         '--reasoning-effort': String,
+        '-a': '--adapter',
         '-c': '--concurrency',
+        '-e': '--effort',
         '-h': '--help',
         '-m': '--model',
         '-r': '--reasoning-effort',
@@ -88,15 +94,13 @@ const discoverAuditFiles = (): string[] => {
 
 interface AppProps {
   baseDir: string
-  concurrency: number
-  model: string
+  cliOptions: ResolvedCliOptions
   promptTemplate: string
-  reasoningEffort: string
   reportDir: string
   totalFiles: number
 }
 
-type SessionStatus = CodexSessionState
+type SessionStatus = 'done' | 'error' | 'idle' | 'running'
 
 interface SessionView {
   error?: string
@@ -126,13 +130,12 @@ const initSessions = (count: number): SessionView[] =>
 
 const App = ({
   baseDir,
-  concurrency,
-  model,
+  cliOptions,
   promptTemplate,
-  reasoningEffort,
   reportDir,
   totalFiles,
 }: AppProps) => {
+  const concurrency = cliOptions.concurrency
   const { exit } = useApp()
   const [sessions, setSessions] = useState<SessionView[]>(() =>
     initSessions(concurrency),
@@ -189,9 +192,8 @@ const App = ({
   useEffect(() => {
     let isActive = true
     const controllers = activeAbortControllers.current
-    const runner = createCodexRunner({
-      model,
-      reasoningEffort,
+    const runner = createAuditAdapter({
+      ...cliOptions,
       workingDirectory: baseDir,
     })
 
@@ -401,12 +403,11 @@ const App = ({
     }
   }, [
     baseDir,
+    cliOptions,
     concurrency,
     exit,
-    model,
     nextTaskNumber,
     promptTemplate,
-    reasoningEffort,
     reportDir,
     totalFiles,
     updateSlot,
@@ -435,14 +436,22 @@ const App = ({
   }
 
   const reportPath = path.join(reportDir, 'reports.json')
+  const effortLabel = cliOptions.adapter === 'codex' ? 'Reasoning' : 'Effort'
+  const effortValue =
+    cliOptions.adapter === 'codex'
+      ? cliOptions.reasoningEffort
+      : cliOptions.effort
 
   return (
     <Box flexDirection='column' width='100%'>
       <Box borderColor='magenta' borderStyle='round' paddingX={1}>
         <Box flexDirection='column'>
           <Box flexDirection='row' flexGrow={1} gap={2}>
-            <Text>Model: {model}</Text>
-            <Text>Reasoning: {reasoningEffort}</Text>
+            <Text>Adapter: {cliOptions.adapter}</Text>
+            <Text>Model: {cliOptions.model}</Text>
+            <Text>
+              {effortLabel}: {effortValue}
+            </Text>
             <Text>Concurrency: {concurrency}</Text>
           </Box>
           <Box flexDirection='row' flexGrow={1} gap={2}>
@@ -527,7 +536,9 @@ const main = async () => {
   let cliOptions
   try {
     cliOptions = resolveCliOptions({
+      '--adapter': parsed['--adapter'] ?? null,
       '--concurrency': parsed['--concurrency'] ?? null,
+      '--effort': parsed['--effort'] ?? null,
       '--model': parsed['--model'] ?? null,
       '--reasoning-effort': parsed['--reasoning-effort'] ?? null,
     })
@@ -547,10 +558,8 @@ const main = async () => {
   render(
     <App
       baseDir={baseDir}
-      concurrency={cliOptions.concurrency}
-      model={cliOptions.model}
+      cliOptions={cliOptions}
       promptTemplate={promptTemplate}
-      reasoningEffort={cliOptions.reasoningEffort}
       reportDir={reportDir}
       totalFiles={totalFiles}
     />,

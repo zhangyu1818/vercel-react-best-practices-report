@@ -31,9 +31,10 @@
     "build:bin": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "tsx --test test/**/*.test.ts"
+    "test": "tsx --test test/*.test.ts test/providers/*.test.ts"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.79",
     "@inkjs/ui": "^2.0.0",
     "@openai/codex-sdk": "^0.113.0",
     "arg": "^5.0.2",

@@ -2,21 +2,21 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  codexAuditOutputSchema,
+  auditOutputSchema,
   mergeAuditResults,
   parseJsonValue,
+  validateAuditOutput,
   validateAuditResults,
-  validateCodexAuditOutput,
 } from '../src/bin/lib/report-schema.js'
 
-test('codexAuditOutputSchema uses fixed root properties', () => {
-  assert.equal(codexAuditOutputSchema.additionalProperties, false)
-  assert.deepEqual(codexAuditOutputSchema.required, ['findings'])
+test('auditOutputSchema uses fixed root properties', () => {
+  assert.equal(auditOutputSchema.additionalProperties, false)
+  assert.deepEqual(auditOutputSchema.required, ['findings'])
 })
 
-test('codexAuditOutputSchema marks finding objects as closed schemas', () => {
+test('auditOutputSchema marks finding objects as closed schemas', () => {
   assert.equal(
-    codexAuditOutputSchema.properties.findings.items.additionalProperties,
+    auditOutputSchema.properties.findings.items.additionalProperties,
     false,
   )
 })
@@ -30,8 +30,8 @@ test('validateAuditResults accepts empty arrays per file', () => {
   )
 })
 
-test('validateCodexAuditOutput accepts findings-only payloads', () => {
-  const result = validateCodexAuditOutput({
+test('validateAuditOutput accepts findings-only payloads', () => {
+  const result = validateAuditOutput({
     findings: [],
   })
 
