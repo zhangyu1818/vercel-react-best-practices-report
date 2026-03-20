@@ -120,13 +120,24 @@ export const initializeQueueState = async (
     const completedFiles = loadCompletedFiles(reportDir)
     const discoveredFileSet = new Set(discoveredFiles)
     const previousState = loadQueueState(statePath)
+    const failed: string[] = []
     const pending: string[] = []
     const seen = new Set<string>()
+
+    for (const filePath of previousState.failed) {
+      if (seen.has(filePath)) {
+        continue
+      }
+      if (!discoveredFileSet.has(filePath) || completedFiles.has(filePath)) {
+        continue
+      }
+      seen.add(filePath)
+      failed.push(filePath)
+    }
 
     for (const filePath of [
       ...previousState.pending,
       ...previousState.inProgress,
-      ...previousState.failed,
       ...discoveredFiles,
     ]) {
       if (seen.has(filePath)) {
@@ -140,12 +151,12 @@ export const initializeQueueState = async (
     }
 
     persistQueueState(statePath, {
-      failed: [],
+      failed,
       inProgress: [],
       pending,
     })
 
-    return pending.length
+    return failed.length + pending.length
   })
 }
 
@@ -156,15 +167,17 @@ export const claimNextQueueFile = async (
 
   return withFileLock(lockPath, () => {
     const state = loadQueueState(statePath)
-    const nextFile = state.pending[0]
+    const nextFile = state.failed[0] ?? state.pending[0]
     if (!nextFile) {
       return null
     }
 
     persistQueueState(statePath, {
-      failed: state.failed,
       inProgress: [...state.inProgress, nextFile],
-      pending: state.pending.slice(1),
+      failed:
+        state.failed[0] === nextFile ? state.failed.slice(1) : state.failed,
+      pending:
+        state.pending[0] === nextFile ? state.pending.slice(1) : state.pending,
     })
 
     return nextFile

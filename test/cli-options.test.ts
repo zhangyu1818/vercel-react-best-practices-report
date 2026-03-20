@@ -217,3 +217,19 @@ test('resolveCliOptions rejects --directory paths outside the current working di
         '--directory must be a relative path within the current working directory.',
   )
 })
+
+test('resolveCliOptions allows relative directories that begin with two dots', () => {
+  const result = resolveCliOptions(
+    {
+      '--adapter': 'codex',
+      '--concurrency': null,
+      '--directory': '..cache',
+      '--effort': null,
+      '--model': 'gpt-5.4',
+      '--reasoning-effort': null,
+    },
+    '/tmp/project',
+  )
+
+  assert.equal(result.directory, path.join('/tmp/project', '..cache'))
+})

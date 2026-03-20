@@ -136,7 +136,8 @@ const parseDirectory = (
   const resolvedDirectory = path.resolve(launchDirectory, directory)
   const relativeDirectory = path.relative(launchDirectory, resolvedDirectory)
   if (
-    relativeDirectory.startsWith('..') ||
+    relativeDirectory === '..' ||
+    relativeDirectory.startsWith(`..${path.sep}`) ||
     path.isAbsolute(relativeDirectory)
   ) {
     throw new CliUsageError(
