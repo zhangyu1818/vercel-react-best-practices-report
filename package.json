@@ -1,7 +1,7 @@
 {
   "name": "vercel-react-best-practices-report",
   "type": "module",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "packageManager": "pnpm@10.26.2",
   "description": "Audit React-family files with Vercel React Best Practices and merge results into a JSON report.",
   "author": "Zhang Yu <hey@zhangyu.dev>",
