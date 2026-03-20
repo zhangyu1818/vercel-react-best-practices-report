@@ -75,3 +75,25 @@ test('resolveReportDir places reports inside the target directory', () => {
     '/tmp/project/packages/app/react-best-practices-report',
   )
 })
+
+test('discoverAuditFiles treats the target directory as a literal path', (t) => {
+  const rootDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'runtime-paths-literal.'),
+  )
+  t.after(() => {
+    fs.rmSync(rootDir, { force: true, recursive: true })
+  })
+
+  const injectedPath = path.join(rootDir, 'injected.txt')
+  const targetDir = path.join(rootDir, `safe"; touch ${injectedPath}; #`)
+  fs.mkdirSync(path.join(targetDir, 'src'), { recursive: true })
+  fs.writeFileSync(
+    path.join(targetDir, 'src', 'keep.ts'),
+    'export const keep = true\n',
+  )
+
+  const files = discoverAuditFiles(targetDir)
+
+  assert.deepEqual(files, [path.join(targetDir, 'src', 'keep.ts')])
+  assert.equal(fs.existsSync(injectedPath), false)
+})
