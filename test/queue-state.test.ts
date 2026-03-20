@@ -66,7 +66,7 @@ test('initializeQueueState requeues interrupted files and skips completed ones',
   assert.deepEqual(readQueueState(reportDir), {
     failed: [],
     inProgress: [],
-    pending: [pendingFile, interruptedFile, failedFile, newFile],
+    pending: [failedFile, pendingFile, interruptedFile, newFile],
   })
 })
 
@@ -99,6 +99,22 @@ test('claimNextQueueFile claims pending files exactly once and markQueueFileDone
   })
 })
 
+test('claimNextQueueFile does not immediately reclaim failed files in the same invocation', async () => {
+  const reportDir = createTempReportDir()
+  const failedFile = '/tmp/project/error.tsx'
+  const pendingFile = '/tmp/project/pending.tsx'
+
+  await initializeQueueState(reportDir, [failedFile, pendingFile])
+  assert.equal(await claimNextQueueFile(reportDir), failedFile)
+  await markQueueFileFailed(reportDir, failedFile)
+  assert.equal(await claimNextQueueFile(reportDir), pendingFile)
+  assert.deepEqual(readQueueState(reportDir), {
+    failed: [failedFile],
+    inProgress: [pendingFile],
+    pending: [],
+  })
+})
+
 test('markQueueFileFailed preserves failed files for the next invocation', async () => {
   const reportDir = createTempReportDir()
   const filePath = '/tmp/project/error.tsx'
@@ -119,6 +135,13 @@ test('markQueueFileFailed preserves failed files for the next invocation', async
     failed: [],
     inProgress: [],
     pending: [filePath],
+  })
+
+  assert.equal(await claimNextQueueFile(reportDir), filePath)
+  assert.deepEqual(readQueueState(reportDir), {
+    failed: [],
+    inProgress: [filePath],
+    pending: [],
   })
 })
 

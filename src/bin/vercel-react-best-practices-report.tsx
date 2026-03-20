@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { execSync } from 'node:child_process'
 /* eslint-disable react-refresh/only-export-components */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -8,11 +7,11 @@ import { fileURLToPath } from 'node:url'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Badge, Spinner, StatusMessage } from '@inkjs/ui'
-import arg from 'arg'
 import { Box, render, Text, useApp } from 'ink'
 
 import {
   CliUsageError,
+  parseCliArgs,
   resolveCliOptions,
   usage,
   type ResolvedCliOptions,
@@ -26,15 +25,19 @@ import {
 } from './lib/queue-state.js'
 import { mergeAuditResultsIntoReport } from './lib/report-files.js'
 import {
+  discoverAuditFiles,
+  ensureReportDir,
+  resolveReportDir,
+} from './lib/runtime-paths.js'
+import {
   buildSessionOutcomeLine,
   buildSessionProgressLine,
   countAuditFindings,
 } from './lib/tui-presentation.js'
 
-const baseDir = process.cwd()
+const launchDirectory = process.cwd()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const reportDir = path.join(baseDir, 'react-best-practices-report')
 const promptPath = path.join(
   __dirname,
   '..',
@@ -43,54 +46,6 @@ const promptPath = path.join(
 )
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
-const parseArgs = () => {
-  try {
-    return arg(
-      {
-        '--adapter': String,
-        '--concurrency': Number,
-        '--effort': String,
-        '--help': Boolean,
-        '--model': String,
-        '--reasoning-effort': String,
-        '-a': '--adapter',
-        '-c': '--concurrency',
-        '-e': '--effort',
-        '-h': '--help',
-        '-m': '--model',
-        '-r': '--reasoning-effort',
-      },
-      { argv: process.argv.slice(2) },
-    )
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error(message)
-    console.error(usage())
-    process.exit(1)
-  }
-}
-
-const ensureReportDir = () => {
-  fs.mkdirSync(reportDir, { recursive: true })
-}
-
-const buildFindCommand = () =>
-  `${String.raw`find "${baseDir}" -type f \( -name "*.ts" -o -name "*.tsx" \) `}-not -path "*/node_modules/*" ` +
-  `-not -path "*/__tests__/*" ` +
-  `-not -path "*/mock/*" ` +
-  `-not -path "*/types/*" ` +
-  `-not -name "*.test.*" ` +
-  `-not -name "*.spec.*" ` +
-  `-not -name "*.d.ts"`
-
-const discoverAuditFiles = (): string[] => {
-  const output = execSync(buildFindCommand(), { encoding: 'utf8' })
-  return output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-}
 
 interface AppProps {
   baseDir: string
@@ -527,7 +482,15 @@ const App = ({
 }
 
 const main = async () => {
-  const parsed = parseArgs()
+  let parsed
+  try {
+    parsed = parseCliArgs()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(message)
+    console.error(usage())
+    process.exit(1)
+  }
   if (parsed['--help']) {
     process.stdout.write(`${usage()}\n`)
     process.exit(0)
@@ -535,13 +498,17 @@ const main = async () => {
 
   let cliOptions
   try {
-    cliOptions = resolveCliOptions({
-      '--adapter': parsed['--adapter'] ?? null,
-      '--concurrency': parsed['--concurrency'] ?? null,
-      '--effort': parsed['--effort'] ?? null,
-      '--model': parsed['--model'] ?? null,
-      '--reasoning-effort': parsed['--reasoning-effort'] ?? null,
-    })
+    cliOptions = resolveCliOptions(
+      {
+        '--adapter': parsed['--adapter'] ?? null,
+        '--concurrency': parsed['--concurrency'] ?? null,
+        '--directory': parsed['--directory'] ?? null,
+        '--effort': parsed['--effort'] ?? null,
+        '--model': parsed['--model'] ?? null,
+        '--reasoning-effort': parsed['--reasoning-effort'] ?? null,
+      },
+      launchDirectory,
+    )
   } catch (error) {
     if (error instanceof CliUsageError) {
       console.error(error.message)
@@ -551,8 +518,13 @@ const main = async () => {
     throw error
   }
 
-  ensureReportDir()
-  const totalFiles = await initializeQueueState(reportDir, discoverAuditFiles())
+  const baseDir = cliOptions.directory
+  const reportDir = resolveReportDir(baseDir)
+  ensureReportDir(reportDir)
+  const totalFiles = await initializeQueueState(
+    reportDir,
+    discoverAuditFiles(baseDir),
+  )
   const promptTemplate = fs.readFileSync(promptPath, 'utf8')
 
   render(

@@ -124,9 +124,9 @@ export const initializeQueueState = async (
     const seen = new Set<string>()
 
     for (const filePath of [
+      ...previousState.failed,
       ...previousState.pending,
       ...previousState.inProgress,
-      ...previousState.failed,
       ...discoveredFiles,
     ]) {
       if (seen.has(filePath)) {
